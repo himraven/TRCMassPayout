@@ -12,6 +12,7 @@ import type {
   TransactionStatusResult,
   TronSignedTransaction,
   TronUnsignedTransaction,
+  ValidationResult,
   WalletBalance,
   WalletSnapshot,
   WatcherListener,
@@ -22,6 +23,13 @@ export interface IWalletService {
   disconnect(): Promise<void>
   getBalance(address?: string): Promise<WalletBalance>
   getAddress(): Promise<string | null>
+  restoreConnection(): Promise<WalletSnapshot | null>
+  subscribe(
+    handlers: {
+      onAccountsChanged?: (accounts: string[]) => void | Promise<void>
+      onDisconnect?: () => void | Promise<void>
+    },
+  ): () => void
   signTransaction(
     unsignedTransaction: TronUnsignedTransaction,
   ): Promise<TronSignedTransaction>
@@ -32,13 +40,7 @@ export interface IImporterService {
   validateBatch(
     input: ImportedBatchDraft,
     walletBalance?: WalletBalance,
-  ): Promise<{
-    validRows: number
-    invalidRows: number
-    totalAmount: string
-    duplicates: number
-    errors: ImportValidationError[]
-  }>
+  ): Promise<ValidationResult>
   getErrors(): ImportValidationError[]
 }
 

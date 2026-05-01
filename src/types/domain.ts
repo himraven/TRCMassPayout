@@ -10,6 +10,11 @@ export type PayoutItemStatus =
 
 export type PayoutErrorCode =
   | 'INVALID_ADDRESS'
+  | 'INVALID_AMOUNT'
+  | 'DUPLICATE_ADDRESS'
+  | 'MISSING_FIELD'
+  | 'PRECISION_EXCEEDED'
+  | 'BUDGET_EXCEEDED'
   | 'INSUFFICIENT_BALANCE'
   | 'INSUFFICIENT_ENERGY'
   | 'INSUFFICIENT_BANDWIDTH'
@@ -113,35 +118,81 @@ export interface WalletBalance {
   bandwidthAvailable: number
 }
 
+export interface WalletEnergyEstimate {
+  energyPerTransfer: number
+  estimatedTrxCostSun: string
+  estimatedTransfersSupported: number
+  lowTrxWarning: boolean
+  lowEnergyWarning: boolean
+}
+
 export interface WalletSnapshot {
   address: string
   network: string
   balance: WalletBalance
 }
 
+export interface WalletState {
+  connected: boolean
+  address: string | null
+  network: string
+  balance: WalletBalance
+  energyEstimate: WalletEnergyEstimate
+  isConnecting: boolean
+  lastSyncedAt: string | null
+}
+
 export interface ImportedBatchRow {
   lineNumber: number
-  recipient: string
+  recipientName: string
+  address: string
   amount: string
-  reference?: string
+  contactEmail?: string
+  contactTelegram?: string
+  raw: Record<string, string>
 }
 
 export interface ImportedBatchDraft {
   fileName: string
+  fileType: 'csv' | 'xlsx'
+  columnMap: {
+    recipientName: string | null
+    address: string | null
+    amount: string | null
+    contactEmail: string | null
+    contactTelegram: string | null
+  }
   rows: ImportedBatchRow[]
 }
 
 export interface ImportValidationError {
+  field:
+    | 'recipient_name'
+    | 'address'
+    | 'amount'
+    | 'contact_email'
+    | 'contact_telegram'
+    | 'batch'
   lineNumber: number
-  code: string
+  code: PayoutErrorCode
   message: string
 }
 
+export interface ValidationRowResult {
+  rowNumber: number
+  status: 'valid' | 'warning' | 'error'
+  errors: ImportValidationError[]
+  item: ImportedBatchRow
+}
+
 export interface ValidationResult {
-  validRows: number
-  invalidRows: number
+  rows: ValidationRowResult[]
+  totalRows: number
+  validCount: number
+  warningCount: number
+  errorCount: number
   totalAmount: string
-  duplicates: number
+  estimatedTrxCost: string
   errors: ImportValidationError[]
 }
 
@@ -208,16 +259,16 @@ export interface WatcherEvent extends TransactionStatusResult {
 export type WatcherListener = (event: WatcherEvent) => void
 
 export interface AppState {
-  wallet: {
-    connected: boolean
-    address: string | null
-    network: string
-    balance: WalletBalance
-  }
+  wallet: WalletState
+  connectWallet: () => Promise<void>
+  disconnectWallet: () => Promise<void>
+  refreshWalletBalances: () => Promise<void>
   batches: BatchRecord[]
   settings: {
     concurrency: number
     confirmationTimeoutMs: number
     resumeOnReload: boolean
   }
+  addBatch: (batch: BatchRecord) => void
+  setBatches: (batches: BatchRecord[]) => void
 }
