@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { ReceiptPreview } from '../components/ReceiptPreview'
 import { SectionCard } from '../components/SectionCard'
 import { StatusBadge } from '../components/StatusBadge'
 import { batchManager } from '../modules/batch'
+import { exporterService } from '../modules/exporter'
+import { receiptRenderer } from '../modules/receipt'
 import { eventBus } from '../utils/eventBus'
 import { useAppStore } from '../stores/useAppStore'
 import { maskAddress } from '../utils/tron'
 import { useWallet } from '../hooks/useWallet'
-import type { BatchRecord, PayoutItemRecord } from '../types'
+import type { BatchRecord, PayoutItemRecord, ReceiptRecord } from '../types'
 
 export function BatchDetail() {
   const { batchId } = useParams()
@@ -23,7 +26,10 @@ export function BatchDetail() {
   )
   const [batch, setBatch] = useState<BatchRecord | null>(null)
   const [items, setItems] = useState<PayoutItemRecord[]>([])
+  const [receipts, setReceipts] = useState<ReceiptRecord[]>([])
   const [selectedFailedIds, setSelectedFailedIds] = useState<string[]>([])
+  const [selectedReceipt, setSelectedReceipt] = useState<ReceiptRecord | null>(null)
+  const [isExporting, setIsExporting] = useState<null | 'zip' | 'csv' | 'pdf'>(null)
 
   const activeBatchId = batch?.id ?? batchId ?? null
 
@@ -32,13 +38,15 @@ export function BatchDetail() {
       return
     }
 
-    const [nextBatch, nextItems] = await Promise.all([
+    const [nextBatch, nextItems, nextReceipts] = await Promise.all([
       batchManager.getBatch(batchId),
       batchManager.listBatchItems(batchId),
+      receiptRenderer.listBatchReceipts(batchId),
     ])
 
     setBatch(nextBatch)
     setItems(nextItems)
+    setReceipts(nextReceipts)
     await refreshExecutionProgress(batchId)
   }, [batchId, refreshExecutionProgress])
 
@@ -70,6 +78,11 @@ export function BatchDetail() {
         }
       }),
       eventBus.subscribe('batch.paused', ({ batchId: changedBatchId }) => {
+        if (changedBatchId === batchId) {
+          void loadBatch()
+        }
+      }),
+      eventBus.subscribe('receipt.generated', ({ batchId: changedBatchId }) => {
         if (changedBatchId === batchId) {
           void loadBatch()
         }
@@ -120,6 +133,8 @@ export function BatchDetail() {
   }, [activeBatchId, execution.activeBatchId, execution.progress, items])
 
   const failedItems = items.filter((item) => item.status === 'Failed')
+  const successItems = items.filter((item) => item.status === 'Success')
+  const receiptProgressLabel = `${receipts.length}/${successItems.length} generated`
   const completedPercent =
     progress.total === 0 ? 0 : Math.round((progress.terminal / progress.total) * 100)
   const canStart =
@@ -137,6 +152,54 @@ export function BatchDetail() {
     batch?.lifecycle === 'Paying' &&
     execution.activeBatchId === batch?.id &&
     execution.isPaused
+  const canExport = (batch?.lifecycle === 'Completed') || successItems.length > 0
+
+  const handleExportZip = async () => {
+    if (!batch) {
+      return
+    }
+    setIsExporting('zip')
+    try {
+      await exporterService.exportZip(batch.id)
+      await loadBatch()
+    } finally {
+      setIsExporting(null)
+    }
+  }
+
+  const handleExportCsv = async () => {
+    if (!batch) {
+      return
+    }
+    setIsExporting('csv')
+    try {
+      await exporterService.exportCSV(batch.id)
+      await loadBatch()
+    } finally {
+      setIsExporting(null)
+    }
+  }
+
+  const handleExportPdf = async () => {
+    if (!batch) {
+      return
+    }
+    setIsExporting('pdf')
+    try {
+      await exporterService.exportPdfBundle(batch.id)
+      await loadBatch()
+    } finally {
+      setIsExporting(null)
+    }
+  }
+
+  const openReceipt = async (item: PayoutItemRecord) => {
+    const receipt = await receiptRenderer.ensureReceiptForItem(item.id)
+    if (receipt) {
+      setSelectedReceipt(receipt)
+      await loadBatch()
+    }
+  }
 
   if (!batch) {
     return (
@@ -228,6 +291,50 @@ export function BatchDetail() {
         </div>
       </SectionCard>
 
+      {canExport ? (
+        <SectionCard
+          title="Exports and receipts"
+          description="Generate delivery assets for reconciliation, finance review, and recipient proof."
+          action={
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void handleExportZip()}
+                disabled={isExporting !== null || successItems.length === 0}
+                className="rounded-full border border-emerald-500/30 bg-emerald-500/15 px-4 py-2 text-sm font-semibold text-emerald-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isExporting === 'zip' ? 'Preparing ZIP…' : 'Download All Receipts (ZIP)'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleExportCsv()}
+                disabled={isExporting !== null || items.length === 0}
+                className="rounded-full border border-sky-500/30 bg-sky-500/15 px-4 py-2 text-sm font-semibold text-sky-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isExporting === 'csv' ? 'Preparing CSV…' : 'Export Reconciliation CSV'}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleExportPdf()}
+                disabled={isExporting !== null || successItems.length === 0}
+                className="rounded-full border border-violet-500/30 bg-violet-500/15 px-4 py-2 text-sm font-semibold text-violet-200 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isExporting === 'pdf' ? 'Preparing PDF…' : 'Export PDF Bundle'}
+              </button>
+            </div>
+          }
+        >
+          <div className="grid gap-4 md:grid-cols-3">
+            <Summary label="Successful items" value={String(successItems.length)} />
+            <Summary label="Receipt progress" value={receiptProgressLabel} />
+            <Summary
+              label="Ready to export"
+              value={successItems.length > 0 ? 'Yes' : 'Waiting for success items'}
+            />
+          </div>
+        </SectionCard>
+      ) : null}
+
       <SectionCard
         title="Failed items"
         description="Select failed rows, reset them to Pending, and re-queue only those items."
@@ -305,9 +412,20 @@ export function BatchDetail() {
             </thead>
             <tbody className="divide-y divide-slate-800 bg-slate-950/60">
               {items.map((item) => (
-                <tr key={item.id}>
+                <tr
+                  key={item.id}
+                  className={item.status === 'Success' ? 'cursor-pointer hover:bg-slate-900/80' : ''}
+                  onClick={() => {
+                    if (item.status === 'Success') {
+                      void openReceipt(item)
+                    }
+                  }}
+                >
                   <td className="px-4 py-3 text-slate-200">
-                    {maskAddress(item.recipient)}
+                    <div className="space-y-1">
+                      <div>{item.reference || 'Unknown recipient'}</div>
+                      <div className="text-xs text-slate-500">{maskAddress(item.recipient)}</div>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-slate-200">{item.amount}</td>
                   <td className="px-4 py-3">
@@ -325,7 +443,12 @@ export function BatchDetail() {
             </tbody>
           </table>
         </div>
+        <p className="mt-3 text-xs text-slate-500">
+          Click any successful item to preview and download its receipt.
+        </p>
       </SectionCard>
+
+      <ReceiptPreview receipt={selectedReceipt} onClose={() => setSelectedReceipt(null)} />
     </div>
   )
 }

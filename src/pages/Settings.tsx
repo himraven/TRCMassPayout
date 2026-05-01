@@ -83,6 +83,26 @@ export function Settings() {
         </div>
 
         <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+          <label className="text-xs uppercase tracking-[0.2em] text-slate-400">
+            Company / sender identity
+          </label>
+          <input
+            type="text"
+            value={settings.senderIdentity}
+            onChange={(event) =>
+              updateSettings({
+                senderIdentity: event.target.value,
+              })
+            }
+            className="mt-3 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none"
+            placeholder="Acme Treasury"
+          />
+          <p className="mt-2 text-sm text-slate-400">
+            Used in receipt headers and exported documents
+          </p>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
           <label className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-slate-400">

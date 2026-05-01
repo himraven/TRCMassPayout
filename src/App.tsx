@@ -4,6 +4,7 @@ import { BatchDetail } from './pages/BatchDetail'
 import { Dashboard } from './pages/Dashboard'
 import { ImportPage } from './pages/ImportPage'
 import { Settings } from './pages/Settings'
+import './modules/receipt'
 
 function App() {
   return (

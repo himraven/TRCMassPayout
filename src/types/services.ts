@@ -103,11 +103,15 @@ export interface IChainWatcher {
 export interface IReceiptRenderer {
   render(
     input: ReceiptRenderInput,
-  ): Promise<{ pngDataUrl: string; pdfDataUrl: string }>
+  ): Promise<{ pngBlob: Blob; pdfBlob: Blob; checksumSha256: string; qrValue: string }>
   generateChecksum(input: ReceiptChecksumInput): Promise<string>
+  ensureReceiptForItem(payoutItemId: string): Promise<import('./domain').ReceiptRecord | null>
+  getReceiptByItemId(payoutItemId: string): Promise<import('./domain').ReceiptRecord | null>
+  listBatchReceipts(batchId: string): Promise<import('./domain').ReceiptRecord[]>
 }
 
 export interface IExporter {
   exportZip(batchId: string): Promise<Blob>
-  exportCSV(batchId: string): Promise<string>
+  exportCSV(batchId: string): Promise<Blob>
+  exportPdfBundle(batchId: string): Promise<Blob>
 }

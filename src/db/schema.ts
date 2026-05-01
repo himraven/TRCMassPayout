@@ -25,6 +25,15 @@ export class TrcMassPayoutDB extends Dexie {
       auditLogs: 'id, batchId, payoutItemId, action, createdAt',
       walletCache: 'address, network, lastSyncedAt',
     })
+
+    this.version(2).stores({
+      batches: 'id, lifecycle, createdAt, updatedAt',
+      payoutItems:
+        'id, batchId, [batchId+status], recipient, txId, idempotencyKey, updatedAt',
+      receipts: 'id, batchId, payoutItemId, txId, checksumSha256, generatedAt',
+      auditLogs: 'id, batchId, payoutItemId, action, createdAt',
+      walletCache: 'address, network, lastSyncedAt',
+    })
   }
 }
 

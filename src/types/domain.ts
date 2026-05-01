@@ -77,16 +77,20 @@ export interface ReceiptRecord {
   batchId: string
   payoutItemId: string
   txId: string
+  batchName: string
   sender: string
-  recipient: string
-  maskedRecipient: string
+  recipientName: string
+  recipientAddress: string
+  maskedRecipientAddress: string
   amount: string
   network: string
   status: 'Success'
   checksumSha256: string
-  pngDataUrl: string
-  pdfDataUrl: string
+  pngBlob: Blob
+  pdfBlob: Blob
   qrValue: string
+  initiatedAt: string
+  confirmedAt: string
   generatedAt: string
   timezone: string
 }
@@ -241,15 +245,21 @@ export interface TransactionStatusResult {
 
 export interface ReceiptRenderInput {
   batchId: string
+  batchName: string
   sender: string
-  recipient: string
-  maskedRecipient: string
+  recipientName: string
+  recipientAddress: string
+  maskedRecipientAddress: string
   amount: string
   txId: string
+  initiatedAt: string
+  confirmedAt: string
+  network: string
+  companyName: string
 }
 
 export interface ReceiptChecksumInput extends ReceiptRenderInput {
-  confirmedAt: string
+  recipientAddress: string
 }
 
 export type BatchListItem = BatchRecord
@@ -280,6 +290,7 @@ export interface ExecutionSettings {
   feeLimitTrx: number
   confirmationTimeoutMinutes: number
   resumeOnReload: boolean
+  senderIdentity: string
 }
 
 export interface BatchExecutionState {

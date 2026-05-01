@@ -240,6 +240,7 @@ export const useAppStore = create<AppState>()(
       feeLimitTrx: 150,
       confirmationTimeoutMinutes: 10,
       resumeOnReload: true,
+      senderIdentity: 'TRC Mass Payout',
     },
     updateSettings: (settings) =>
       set((state) => ({
