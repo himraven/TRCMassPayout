@@ -1,12 +1,15 @@
 import type {
+  BatchProgress,
   BatchLifecycle,
   BatchListItem,
   BatchRecord,
   BroadcastResult,
   BuildTransactionInput,
   CreateBatchInput,
+  ExecutionSettings,
   ImportedBatchDraft,
   ImportValidationError,
+  PayoutItemRecord,
   ReceiptChecksumInput,
   ReceiptRenderInput,
   TransactionStatusResult,
@@ -48,7 +51,17 @@ export interface IBatchManager {
   createBatch(input: CreateBatchInput): Promise<BatchRecord>
   getBatch(batchId: string): Promise<BatchRecord | null>
   listBatches(): Promise<BatchListItem[]>
+  listBatchItems(batchId: string): Promise<PayoutItemRecord[]>
   updateStatus(batchId: string, status: BatchLifecycle): Promise<void>
+  updateBatch(
+    batchId: string,
+    changes: Partial<BatchRecord>,
+  ): Promise<void>
+  updatePayoutItem(
+    itemId: string,
+    changes: Partial<PayoutItemRecord>,
+  ): Promise<void>
+  getBatchProgress(batchId: string): Promise<BatchProgress>
 }
 
 export interface PayoutProvider {
@@ -64,10 +77,25 @@ export interface PayoutProvider {
   getStatus(txId: string): Promise<TransactionStatusResult>
 }
 
-export type IPayoutEngine = PayoutProvider
+export interface IPayoutEngine extends PayoutProvider {
+  startBatch(batchId: string, settings: ExecutionSettings): Promise<void>
+  pauseBatch(batchId: string, reason?: string): Promise<void>
+  resumeBatch(batchId: string, settings: ExecutionSettings): Promise<void>
+  retryFailed(
+    batchId: string,
+    itemIds: string[],
+    settings: ExecutionSettings,
+  ): Promise<void>
+  recover(settings: ExecutionSettings): Promise<void>
+}
 
 export interface IChainWatcher {
-  watch(txId: string, payoutItemId: string): Promise<void>
+  watch(
+    txId: string,
+    payoutItemId: string,
+    batchId: string,
+    settings?: Pick<ExecutionSettings, 'confirmationTimeoutMinutes'>,
+  ): Promise<void>
   getConfirmation(txId: string): Promise<TransactionStatusResult>
   subscribe(listener: WatcherListener): () => void
 }

@@ -5,7 +5,7 @@ import { importerService } from '../modules/importer'
 import { batchManager } from '../modules/batch'
 import { useWallet } from '../hooks/useWallet'
 import { useAppStore } from '../stores/useAppStore'
-import { maskAddress } from '../utils/tron'
+import { maskAddress, TRON_MAINNET_USDT_CONTRACT } from '../utils/tron'
 import type { BatchRecord, ImportedBatchDraft, PayoutItemRecord, ValidationResult } from '../types'
 
 type FilterMode = 'all' | 'errors' | 'warnings'
@@ -41,6 +41,7 @@ function getStatusClasses(status: ValidationResult['rows'][number]['status']) {
 export function ImportWizard() {
   const wallet = useWallet()
   const addBatch = useAppStore((state) => state.addBatch)
+  const settings = useAppStore((state) => state.settings)
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -148,7 +149,7 @@ export function ImportWizard() {
       network: wallet.network,
       senderAddress: wallet.address ?? 'Not connected',
       tokenSymbol: 'USDT',
-      tokenContract: 'TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj',
+      tokenContract: TRON_MAINNET_USDT_CONTRACT,
       totalCount: validation.totalRows,
       validCount: validation.validCount + validation.warningCount,
       invalidCount: validation.errorCount,
@@ -157,7 +158,7 @@ export function ImportWizard() {
       totalAmount: validation.totalAmount,
       estimatedEnergy: Math.round(Number(validation.estimatedTrxCost) * 65000),
       estimatedBandwidth: validation.totalRows * 350,
-      concurrency: 6,
+      concurrency: settings.concurrency,
       startedAt: null,
       completedAt: null,
       createdAt: now,

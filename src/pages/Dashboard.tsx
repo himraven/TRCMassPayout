@@ -6,12 +6,18 @@ import { SectionCard } from '../components/SectionCard'
 import { StatusBadge } from '../components/StatusBadge'
 import { useBatches } from '../hooks/useBatches'
 import { useWallet } from '../hooks/useWallet'
+import { useAppStore } from '../stores/useAppStore'
 import { sampleValidationRules } from '../stores/mockData'
 
 export function Dashboard() {
   const { batches, activeCount, completedCount } = useBatches()
   const wallet = useWallet()
+  const refreshBatches = useAppStore((state) => state.refreshBatches)
   const [qrCode, setQrCode] = useState<string>('')
+
+  useEffect(() => {
+    void refreshBatches()
+  }, [refreshBatches])
 
   useEffect(() => {
     if (!wallet.address) {

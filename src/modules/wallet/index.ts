@@ -8,9 +8,10 @@ import type {
 } from '../../types'
 import { db } from '../../db/schema'
 import { eventBus } from '../../utils/eventBus'
-
-const MAINNET_USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
-const NILE_USDT_CONTRACT = 'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf'
+import {
+  TRON_MAINNET_USDT_CONTRACT,
+  TRON_NILE_USDT_CONTRACT,
+} from '../../utils/tron'
 const ENERGY_PER_USDT_TRANSFER = 65000
 const LOW_TRX_THRESHOLD_SUN = 30_000_000
 const LOW_ENERGY_THRESHOLD = ENERGY_PER_USDT_TRANSFER
@@ -185,7 +186,9 @@ export class WalletService implements IWalletService {
   }
 
   private getUsdtContract() {
-    return this.isNileNetwork() ? NILE_USDT_CONTRACT : MAINNET_USDT_CONTRACT
+    return this.isNileNetwork()
+      ? TRON_NILE_USDT_CONTRACT
+      : TRON_MAINNET_USDT_CONTRACT
   }
 
   private isNileNetwork() {

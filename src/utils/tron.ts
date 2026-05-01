@@ -7,6 +7,9 @@ const BASE58_MAP = new Map(
 const TRON_ADDRESS_PREFIX = 0x41
 const SUN_PER_TRX = 1_000_000
 const DEFAULT_TRX_PER_TRANSFER = 13.5
+export const TRON_MAINNET_USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t'
+export const TRON_NILE_USDT_CONTRACT = 'TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf'
+export const TRC20_TOKEN_DECIMALS = 6
 
 export function maskAddress(address: string) {
   if (address.length < 10) {
@@ -112,4 +115,44 @@ export function estimateTrxCost(rowCount: number, trxPerTransfer = DEFAULT_TRX_P
 
 export function formatSunToTrx(value: string) {
   return (Number(value) / SUN_PER_TRX).toFixed(6)
+}
+
+export function trxToSun(value: number) {
+  return Math.round(value * SUN_PER_TRX)
+}
+
+export function amountToTokenUnits(
+  amount: string,
+  decimals = TRC20_TOKEN_DECIMALS,
+) {
+  const normalized = amount.trim()
+
+  if (!/^\d+(\.\d+)?$/.test(normalized)) {
+    throw new Error(`Invalid token amount: ${amount}`)
+  }
+
+  const [whole, fraction = ''] = normalized.split('.')
+  const paddedFraction = (fraction + '0'.repeat(decimals)).slice(0, decimals)
+
+  return `${BigInt(whole) * 10n ** BigInt(decimals) + BigInt(paddedFraction || '0')}`
+}
+
+export function decodeHexMessage(hexValue?: string | null) {
+  if (!hexValue) {
+    return null
+  }
+
+  const normalized = hexValue.startsWith('0x') ? hexValue.slice(2) : hexValue
+  const pairs = normalized.match(/.{1,2}/g)
+
+  if (!pairs) {
+    return null
+  }
+
+  try {
+    const bytes = Uint8Array.from(pairs.map((pair) => parseInt(pair, 16)))
+    return new TextDecoder().decode(bytes).replace(/\0/g, '').trim() || null
+  } catch {
+    return null
+  }
 }

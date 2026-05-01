@@ -6,7 +6,7 @@ const colorMap: Record<BatchLifecycle | PayoutItemStatus, string> = {
   Paying: 'border-amber-500/30 bg-amber-500/10 text-amber-200',
   Completed: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',
   Pending: 'border-slate-600 bg-slate-700/20 text-slate-200',
-  Signed: 'border-violet-500/30 bg-violet-500/10 text-violet-200',
+  Signing: 'border-violet-500/30 bg-violet-500/10 text-violet-200',
   Broadcast: 'border-blue-500/30 bg-blue-500/10 text-blue-200',
   Confirming: 'border-amber-500/30 bg-amber-500/10 text-amber-200',
   Success: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200',

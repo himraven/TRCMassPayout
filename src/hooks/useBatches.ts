@@ -1,8 +1,13 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useAppStore } from '../stores/useAppStore'
 
 export function useBatches() {
   const batches = useAppStore((state) => state.batches)
+  const refreshBatches = useAppStore((state) => state.refreshBatches)
+
+  useEffect(() => {
+    void refreshBatches()
+  }, [refreshBatches])
 
   return useMemo(
     () => ({

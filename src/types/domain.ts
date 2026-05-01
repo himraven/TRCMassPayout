@@ -2,7 +2,7 @@ export type BatchLifecycle = 'Draft' | 'Validated' | 'Paying' | 'Completed'
 
 export type PayoutItemStatus =
   | 'Pending'
-  | 'Signed'
+  | 'Signing'
   | 'Broadcast'
   | 'Confirming'
   | 'Success'
@@ -19,6 +19,9 @@ export type PayoutErrorCode =
   | 'INSUFFICIENT_ENERGY'
   | 'INSUFFICIENT_BANDWIDTH'
   | 'NODE_TIMEOUT'
+  | 'NETWORK_ERROR'
+  | 'USER_REJECTED'
+  | 'CONTRACT_REVERTED'
   | 'BROADCAST_REJECTED'
   | 'CONFIRM_TIMEOUT'
 
@@ -207,6 +210,7 @@ export interface BuildTransactionInput {
   recipient: string
   amount: string
   tokenContract: string
+  feeLimitSun?: number
 }
 
 export interface TronUnsignedTransaction {
@@ -230,6 +234,9 @@ export interface TransactionStatusResult {
   updatedAt: string
   explorerUrl: string
   errorCode?: PayoutErrorCode
+  errorMessage?: string
+  blockNumber?: number | null
+  timestamp?: number | null
 }
 
 export interface ReceiptRenderInput {
@@ -254,6 +261,32 @@ export interface CreateBatchInput {
 
 export interface WatcherEvent extends TransactionStatusResult {
   payoutItemId: string
+  batchId: string
+}
+
+export interface BatchProgress {
+  total: number
+  pending: number
+  signing: number
+  broadcast: number
+  confirming: number
+  success: number
+  failed: number
+  terminal: number
+}
+
+export interface ExecutionSettings {
+  concurrency: number
+  feeLimitTrx: number
+  confirmationTimeoutMinutes: number
+  resumeOnReload: boolean
+}
+
+export interface BatchExecutionState {
+  isRunning: boolean
+  isPaused: boolean
+  activeBatchId: string | null
+  progress: BatchProgress
 }
 
 export type WatcherListener = (event: WatcherEvent) => void
@@ -264,11 +297,15 @@ export interface AppState {
   disconnectWallet: () => Promise<void>
   refreshWalletBalances: () => Promise<void>
   batches: BatchRecord[]
-  settings: {
-    concurrency: number
-    confirmationTimeoutMs: number
-    resumeOnReload: boolean
-  }
+  settings: ExecutionSettings
+  batchExecutionState: BatchExecutionState
   addBatch: (batch: BatchRecord) => void
   setBatches: (batches: BatchRecord[]) => void
+  refreshBatches: () => Promise<void>
+  updateSettings: (settings: Partial<ExecutionSettings>) => void
+  refreshExecutionProgress: (batchId?: string | null) => Promise<void>
+  startBatch: (batchId: string) => Promise<void>
+  pauseBatch: () => Promise<void>
+  resumeBatch: () => Promise<void>
+  retryFailed: (batchId: string, itemIds: string[]) => Promise<void>
 }

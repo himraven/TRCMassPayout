@@ -1,7 +1,10 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 import type { AppState } from '../types'
+import { batchManager } from '../modules/batch'
+import { payoutEngine } from '../modules/payout'
 import { walletService } from '../modules/wallet'
-import { sampleBatches } from './mockData'
+import { eventBus } from '../utils/eventBus'
 
 const emptyBalance = {
   trxBalanceSun: '0',
@@ -11,8 +14,21 @@ const emptyBalance = {
 }
 
 const emptyEstimate = walletService.estimateEnergy(emptyBalance)
+const emptyProgress = {
+  total: 0,
+  pending: 0,
+  signing: 0,
+  broadcast: 0,
+  confirming: 0,
+  success: 0,
+  failed: 0,
+  terminal: 0,
+}
+let hasRecovered = false
 
-export const useAppStore = create<AppState>((set, get) => {
+export const useAppStore = create<AppState>()(
+  persist(
+    (set, get) => {
   let unsubscribeWallet: (() => void) | null = null
 
   const applySnapshot = async () => {
@@ -35,7 +51,35 @@ export const useAppStore = create<AppState>((set, get) => {
     })
   }
 
+  const refreshBatches = async () => {
+    const batches = await batchManager.listBatches()
+    set({ batches })
+  }
+
+  const refreshExecutionProgress = async (batchId?: string | null) => {
+    const targetBatchId = batchId ?? get().batchExecutionState.activeBatchId
+
+    if (!targetBatchId) {
+      set((state) => ({
+        batchExecutionState: {
+          ...state.batchExecutionState,
+          progress: emptyProgress,
+        },
+      }))
+      return
+    }
+
+    const progress = await batchManager.getBatchProgress(targetBatchId)
+    set((state) => ({
+      batchExecutionState: {
+        ...state.batchExecutionState,
+        progress,
+      },
+    }))
+  }
+
   void applySnapshot()
+  void refreshBatches()
 
   const ensureSubscription = () => {
     if (unsubscribeWallet) {
@@ -57,6 +101,45 @@ export const useAppStore = create<AppState>((set, get) => {
         await get().disconnectWallet()
       },
     })
+  }
+
+  eventBus.subscribe('batch.progress', ({ batchId, progress }) => {
+    void refreshBatches()
+    set((state) => ({
+      batchExecutionState: {
+        ...state.batchExecutionState,
+        activeBatchId:
+          state.batchExecutionState.activeBatchId === batchId
+            ? batchId
+            : state.batchExecutionState.activeBatchId,
+        progress:
+          state.batchExecutionState.activeBatchId === batchId
+            ? progress
+            : state.batchExecutionState.progress,
+      },
+    }))
+  })
+
+  eventBus.subscribe('batch.completed', ({ batchId }) => {
+    void refreshBatches()
+    set((state) => ({
+      batchExecutionState: {
+        ...state.batchExecutionState,
+        isRunning:
+          state.batchExecutionState.activeBatchId === batchId
+            ? false
+            : state.batchExecutionState.isRunning,
+        isPaused:
+          state.batchExecutionState.activeBatchId === batchId
+            ? false
+            : state.batchExecutionState.isPaused,
+      },
+    }))
+  })
+
+  if (!hasRecovered) {
+    hasRecovered = true
+    void payoutEngine.recover(get().settings).then(() => refreshBatches())
   }
 
   return {
@@ -138,16 +221,102 @@ export const useAppStore = create<AppState>((set, get) => {
         },
       }))
     },
-    batches: sampleBatches,
+    batches: [],
+    batchExecutionState: {
+      isRunning: false,
+      isPaused: false,
+      activeBatchId: null,
+      progress: emptyProgress,
+    },
     addBatch: (batch) =>
       set((state) => ({
         batches: [batch, ...state.batches],
       })),
     setBatches: (batches) => set({ batches }),
+    refreshBatches,
+    refreshExecutionProgress,
     settings: {
-      concurrency: 6,
-      confirmationTimeoutMs: 120000,
+      concurrency: 5,
+      feeLimitTrx: 150,
+      confirmationTimeoutMinutes: 10,
       resumeOnReload: true,
     },
+    updateSettings: (settings) =>
+      set((state) => ({
+        settings: {
+          ...state.settings,
+          ...settings,
+        },
+      })),
+    startBatch: async (batchId) => {
+      await payoutEngine.startBatch(batchId, get().settings)
+      await refreshBatches()
+      await refreshExecutionProgress(batchId)
+      set((state) => ({
+        batchExecutionState: {
+          ...state.batchExecutionState,
+          isRunning: true,
+          isPaused: false,
+          activeBatchId: batchId,
+        },
+      }))
+    },
+    pauseBatch: async () => {
+      const batchId = get().batchExecutionState.activeBatchId
+
+      if (!batchId) {
+        return
+      }
+
+      await payoutEngine.pauseBatch(batchId)
+      await refreshBatches()
+      await refreshExecutionProgress(batchId)
+      set((state) => ({
+        batchExecutionState: {
+          ...state.batchExecutionState,
+          isRunning: false,
+          isPaused: true,
+        },
+      }))
+    },
+    resumeBatch: async () => {
+      const batchId = get().batchExecutionState.activeBatchId
+
+      if (!batchId) {
+        return
+      }
+
+      await payoutEngine.resumeBatch(batchId, get().settings)
+      await refreshBatches()
+      await refreshExecutionProgress(batchId)
+      set((state) => ({
+        batchExecutionState: {
+          ...state.batchExecutionState,
+          isRunning: true,
+          isPaused: false,
+        },
+      }))
+    },
+    retryFailed: async (batchId, itemIds) => {
+      await payoutEngine.retryFailed(batchId, itemIds, get().settings)
+      await refreshBatches()
+      await refreshExecutionProgress(batchId)
+      set((state) => ({
+        batchExecutionState: {
+          ...state.batchExecutionState,
+          isRunning: true,
+          isPaused: false,
+          activeBatchId: batchId,
+        },
+      }))
+    },
   }
-})
+},
+    {
+      name: 'trc-mass-payout-settings',
+      partialize: (state) => ({
+        settings: state.settings,
+      }),
+    },
+  ),
+)
