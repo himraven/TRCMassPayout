@@ -1,0 +1,6 @@
+recipient_name,address,amount,contact_email,contact_telegram
+Bad Prefix,XLrMR4ScAMb3iFBZd9eVJMXQAL8a8Fvm7a,1,bad1@example.com,@bad1
+Too Precise,TLrMR4ScAMb3iFBZd9eVJMXQAL8a8Fvm7a,2.1234567,bad2@example.com,@bad2
+Missing Amount,TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf,,bad3@example.com,@bad3
+Duplicate A,TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t,4,bad4@example.com,@bad4
+Duplicate B,TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t,5,bad5@example.com,@bad5

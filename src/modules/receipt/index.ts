@@ -122,6 +122,10 @@ function buildReceiptMarkup(input: ReceiptRenderInput, qrValue: string, checksum
   `
 }
 
+export function buildReceiptChecksumSource(input: ReceiptChecksumInput) {
+  return `${input.batchId}${input.txId}${input.amount}${input.recipientAddress}`
+}
+
 export class ReceiptRendererService implements IReceiptRenderer {
   constructor() {
     this.bootstrapSubscriptions()
@@ -180,9 +184,7 @@ export class ReceiptRendererService implements IReceiptRenderer {
   }
 
   async generateChecksum(input: ReceiptChecksumInput) {
-    const encoded = new TextEncoder().encode(
-      `${input.batchId}${input.txId}${input.amount}${input.recipientAddress}`,
-    )
+    const encoded = new TextEncoder().encode(buildReceiptChecksumSource(input))
     const hash = await crypto.subtle.digest('SHA-256', encoded)
 
     return Array.from(new Uint8Array(hash))

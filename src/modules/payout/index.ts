@@ -26,6 +26,26 @@ const ENERGY_PER_TRANSFER = 65_000
 const NETWORK_RETRY_LIMIT = 3
 const NETWORK_RETRY_DELAY_MS = 2_000
 
+export function canProcessPayoutItemStatus(status: PayoutItemRecord['status']) {
+  return status === 'Pending'
+}
+
+export function isTerminalPayoutItemStatus(status: PayoutItemRecord['status']) {
+  return status === 'Success' || status === 'Failed'
+}
+
+export function getRecoveryStatus(item: Pick<PayoutItemRecord, 'status' | 'txId'>) {
+  if (item.status === 'Signing') {
+    return 'Pending'
+  }
+
+  if (item.status === 'Broadcast') {
+    return item.txId ? 'Confirming' : 'Pending'
+  }
+
+  return item.status
+}
+
 function delay(timeoutMs: number) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, timeoutMs)

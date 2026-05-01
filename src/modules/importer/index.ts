@@ -103,6 +103,9 @@ export class ImporterService implements IImporterService {
 
     if (extension === 'csv') {
       const text = (await file.text()).replace(/^\uFEFF/, '')
+      if (!text.trim()) {
+        throw new Error('Import file is empty')
+      }
       const parsed = Papa.parse<Record<string, string>>(text, {
         header: true,
         skipEmptyLines: true,
@@ -110,6 +113,9 @@ export class ImporterService implements IImporterService {
         transformHeader: (header) => header.trim(),
       })
       const headers = parsed.meta.fields ?? []
+      if (headers.length === 0 || parsed.data.length === 0) {
+        throw new Error('Import file is empty')
+      }
       const columnMap = detectColumns(headers)
 
       return {
@@ -128,6 +134,9 @@ export class ImporterService implements IImporterService {
       defval: '',
       raw: false,
     })
+    if (rows.length === 0) {
+      throw new Error('Import file is empty')
+    }
     const headers = rows.length > 0 ? Object.keys(rows[0]) : []
     const columnMap = detectColumns(headers)
 
@@ -154,3 +163,8 @@ export class ImporterService implements IImporterService {
 }
 
 export const importerService = new ImporterService()
+export const importerInternals = {
+  detectDelimiter,
+  detectColumns,
+  normalizeHeader,
+}
