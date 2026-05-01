@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from 'react'
 import { NavLink } from 'react-router-dom'
+import { ToastViewport } from './Toast'
 
 const navItems = [
   { label: 'Dashboard', to: '/' },
@@ -10,8 +11,9 @@ const navItems = [
 export function AppShell({ children }: PropsWithChildren) {
   return (
     <div className="min-h-screen bg-transparent text-slate-100">
+      <ToastViewport />
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
-        <header className="mb-8 rounded-3xl border border-slate-800/80 bg-slate-950/60 p-6 shadow-glow backdrop-blur">
+        <header className="mb-8 rounded-3xl border border-slate-800/80 bg-slate-950/60 p-6 shadow-glow backdrop-blur transition-all duration-300">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-3">
               <span className="inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-emerald-300">
@@ -43,10 +45,10 @@ export function AppShell({ children }: PropsWithChildren) {
                 to={item.to}
                 className={({ isActive }) =>
                   [
-                    'rounded-full border px-4 py-2 text-sm font-medium transition',
+                    'rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200',
                     isActive
-                      ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-200'
-                      : 'border-slate-700 bg-slate-900/70 text-slate-300 hover:border-slate-500 hover:text-white',
+                      ? 'border-emerald-400/50 bg-emerald-500/15 text-emerald-200 shadow-[0_0_0_1px_rgba(52,211,153,0.2)]'
+                      : 'border-slate-700 bg-slate-900/70 text-slate-300 hover:border-slate-500 hover:bg-slate-900 hover:text-white',
                   ].join(' ')
                 }
               >
@@ -56,7 +58,7 @@ export function AppShell({ children }: PropsWithChildren) {
           </nav>
         </header>
 
-        <main className="flex-1">{children}</main>
+        <main className="flex-1 animate-[fadeIn_220ms_ease-out]">{children}</main>
       </div>
     </div>
   )

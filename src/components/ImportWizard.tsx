@@ -5,6 +5,8 @@ import { importerService } from '../modules/importer'
 import { batchManager } from '../modules/batch'
 import { useWallet } from '../hooks/useWallet'
 import { useAppStore } from '../stores/useAppStore'
+import { useToastStore } from '../stores/useToastStore'
+import { sanitizeUserText } from '../utils/sanitize'
 import { maskAddress, TRON_MAINNET_USDT_CONTRACT } from '../utils/tron'
 import type { BatchRecord, ImportedBatchDraft, PayoutItemRecord, ValidationResult } from '../types'
 
@@ -42,6 +44,7 @@ export function ImportWizard() {
   const wallet = useWallet()
   const addBatch = useAppStore((state) => state.addBatch)
   const settings = useAppStore((state) => state.settings)
+  const pushToast = useToastStore((state) => state.pushToast)
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -83,7 +86,13 @@ export function ImportWizard() {
       setValidation(result)
       setProgressLabel(`Validated ${result.totalRows} rows`)
     } catch (error) {
-      setFatalError(error instanceof Error ? error.message : 'Failed to import file')
+      const message = error instanceof Error ? error.message : 'Failed to import file'
+      setFatalError(message)
+      pushToast({
+        tone: 'error',
+        title: 'Import failed',
+        description: message,
+      })
       setDraft(null)
       setValidation(null)
       setProgressLabel('Import failed')
@@ -142,12 +151,12 @@ export function ImportWizard() {
 
     const batch: BatchRecord = {
       id: batchId,
-      name: draft.fileName.replace(/\.[^.]+$/, ''),
-      sourceFileName: draft.fileName,
+      name: sanitizeUserText(draft.fileName.replace(/\.[^.]+$/, ''), 120),
+      sourceFileName: sanitizeUserText(draft.fileName, 120),
       lifecycle: 'Validated',
       status: validation.warningCount > 0 ? 'Validated with warnings' : 'Validated',
       network: wallet.network,
-      senderAddress: wallet.address ?? 'Not connected',
+      senderAddress: sanitizeUserText(wallet.address ?? 'Not connected', 64),
       tokenSymbol: 'USDT',
       tokenContract: TRON_MAINNET_USDT_CONTRACT,
       totalCount: validation.totalRows,
@@ -167,6 +176,11 @@ export function ImportWizard() {
 
     await batchManager.createBatch({ batch, items })
     addBatch(batch)
+    pushToast({
+      tone: 'success',
+      title: 'Batch imported',
+      description: `${validation.totalRows} payout rows are ready for review.`,
+    })
     navigate(`/batch/${batchId}`)
   }
 

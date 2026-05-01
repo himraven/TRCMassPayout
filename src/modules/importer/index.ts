@@ -7,6 +7,7 @@ import type {
   WalletBalance,
 } from '../../types'
 import type { ImportValidationError, ImportedBatchRow } from '../../types'
+import { sanitizeUserText } from '../../utils/sanitize'
 import { validateImportedBatch } from './validator'
 
 const COLUMN_ALIASES: Record<
@@ -77,14 +78,17 @@ function mapRows(
 
     return {
       lineNumber: index + 2,
-      recipientName: columnMap.recipientName ? raw[columnMap.recipientName] ?? '' : '',
-      address: columnMap.address ? raw[columnMap.address] ?? '' : '',
-      amount: columnMap.amount ? raw[columnMap.amount] ?? '' : '',
+      recipientName: sanitizeUserText(
+        columnMap.recipientName ? raw[columnMap.recipientName] ?? '' : '',
+        120,
+      ),
+      address: sanitizeUserText(columnMap.address ? raw[columnMap.address] ?? '' : '', 80),
+      amount: sanitizeUserText(columnMap.amount ? raw[columnMap.amount] ?? '' : '', 24),
       contactEmail: columnMap.contactEmail
-        ? raw[columnMap.contactEmail] ?? ''
+        ? sanitizeUserText(raw[columnMap.contactEmail] ?? '', 120)
         : '',
       contactTelegram: columnMap.contactTelegram
-        ? raw[columnMap.contactTelegram] ?? ''
+        ? sanitizeUserText(raw[columnMap.contactTelegram] ?? '', 120)
         : '',
       raw,
     }

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
+import { ErrorCard } from '../components/ErrorCard'
 import { ReceiptPreview } from '../components/ReceiptPreview'
 import { SectionCard } from '../components/SectionCard'
 import { StatusBadge } from '../components/StatusBadge'
@@ -8,6 +10,7 @@ import { exporterService } from '../modules/exporter'
 import { receiptRenderer } from '../modules/receipt'
 import { eventBus } from '../utils/eventBus'
 import { useAppStore } from '../stores/useAppStore'
+import { useToastStore } from '../stores/useToastStore'
 import { maskAddress } from '../utils/tron'
 import { useWallet } from '../hooks/useWallet'
 import type { BatchRecord, PayoutItemRecord, ReceiptRecord } from '../types'
@@ -15,6 +18,8 @@ import type { BatchRecord, PayoutItemRecord, ReceiptRecord } from '../types'
 export function BatchDetail() {
   const { batchId } = useParams()
   const wallet = useWallet()
+  const navigate = useNavigate()
+  const pushToast = useToastStore((state) => state.pushToast)
   const settings = useAppStore((state) => state.settings)
   const execution = useAppStore((state) => state.batchExecutionState)
   const startBatch = useAppStore((state) => state.startBatch)
@@ -30,6 +35,7 @@ export function BatchDetail() {
   const [selectedFailedIds, setSelectedFailedIds] = useState<string[]>([])
   const [selectedReceipt, setSelectedReceipt] = useState<ReceiptRecord | null>(null)
   const [isExporting, setIsExporting] = useState<null | 'zip' | 'csv' | 'pdf'>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   const activeBatchId = batch?.id ?? batchId ?? null
 
@@ -37,6 +43,7 @@ export function BatchDetail() {
     if (!batchId) {
       return
     }
+    setIsLoading(true)
 
     const [nextBatch, nextItems, nextReceipts] = await Promise.all([
       batchManager.getBatch(batchId),
@@ -48,6 +55,7 @@ export function BatchDetail() {
     setItems(nextItems)
     setReceipts(nextReceipts)
     await refreshExecutionProgress(batchId)
+    setIsLoading(false)
   }, [batchId, refreshExecutionProgress])
 
   useEffect(() => {
@@ -161,6 +169,11 @@ export function BatchDetail() {
     setIsExporting('zip')
     try {
       await exporterService.exportZip(batch.id)
+      pushToast({
+        tone: 'success',
+        title: 'ZIP ready',
+        description: 'Receipt archive has been generated.',
+      })
       await loadBatch()
     } finally {
       setIsExporting(null)
@@ -174,6 +187,11 @@ export function BatchDetail() {
     setIsExporting('csv')
     try {
       await exporterService.exportCSV(batch.id)
+      pushToast({
+        tone: 'success',
+        title: 'CSV ready',
+        description: 'Reconciliation export has been generated.',
+      })
       await loadBatch()
     } finally {
       setIsExporting(null)
@@ -187,6 +205,11 @@ export function BatchDetail() {
     setIsExporting('pdf')
     try {
       await exporterService.exportPdfBundle(batch.id)
+      pushToast({
+        tone: 'success',
+        title: 'PDF bundle ready',
+        description: 'Receipt PDF bundle has been generated.',
+      })
       await loadBatch()
     } finally {
       setIsExporting(null)
@@ -253,6 +276,11 @@ export function BatchDetail() {
         </div>
 
         <div className="mt-6 space-y-4">
+          {isLoading ? (
+            <div className="rounded-2xl border border-slate-800 bg-slate-900/60 px-4 py-3 text-sm text-slate-300">
+              Loading batch details…
+            </div>
+          ) : null}
           <div className="flex flex-wrap gap-3">
             <StatusCount label="Pending" value={progress.pending} />
             <StatusCount label="Signing" value={progress.signing} />
@@ -278,15 +306,22 @@ export function BatchDetail() {
           </div>
 
           {!wallet.connected ? (
-            <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
-              Connect TronLink before starting this batch.
-            </div>
+            <ErrorCard
+              title="Wallet required before payout"
+              description="Connect TronLink before starting this batch so transfers can be signed and broadcast."
+              actionLabel={wallet.isConnecting ? 'Connecting…' : 'Open wallet setup'}
+              onAction={() => navigate('/')}
+            />
           ) : null}
 
           {batch.status.toLowerCase().includes('insufficient') ? (
-            <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-              {batch.status}. Add funds in TronLink, then resume the batch.
-            </div>
+            <ErrorCard
+              title="Insufficient funds detected"
+              description={`${batch.status}. Add funds or energy in TronLink, refresh balances, then resume the batch.`}
+              actionLabel="Open dashboard"
+              onAction={() => navigate('/')}
+              icon="💸"
+            />
           ) : null}
         </div>
       </SectionCard>
@@ -411,7 +446,13 @@ export function BatchDetail() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 bg-slate-950/60">
-              {items.map((item) => (
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
+                    No payout items yet. Import and validate a batch to populate this table.
+                  </td>
+                </tr>
+              ) : items.map((item) => (
                 <tr
                   key={item.id}
                   className={item.status === 'Success' ? 'cursor-pointer hover:bg-slate-900/80' : ''}

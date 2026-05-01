@@ -11,6 +11,7 @@ import type {
   ReceiptRenderInput,
 } from '../../types'
 import { eventBus } from '../../utils/eventBus'
+import { sanitizeUserText } from '../../utils/sanitize'
 
 const RECEIPT_WIDTH = 400
 const RECEIPT_HEIGHT = 700
@@ -31,7 +32,7 @@ function formatTimestamp(value: string) {
 }
 
 function escapeHtml(value: string) {
-  return value
+  return sanitizeUserText(value, 240)
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -243,10 +244,10 @@ export class ReceiptRendererService implements IReceiptRenderer {
     const timezone =
       Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
     const initiatedAt = item.broadcastAt ?? item.signedAt ?? item.createdAt
-    const companyName = localStorage.getItem('app-store')
+    const companyName = localStorage.getItem('trc-mass-payout-settings')
     const parsedStore = companyName ? JSON.parse(companyName) : null
     const senderIdentity =
-      parsedStore?.state?.settings?.senderIdentity || 'TRC Mass Payout'
+      sanitizeUserText(parsedStore?.state?.settings?.senderIdentity || 'TRC Mass Payout', 80)
     const renderInput: ReceiptRenderInput = {
       batchId: batch.id,
       batchName: batch.name,

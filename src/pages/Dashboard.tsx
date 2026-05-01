@@ -1,18 +1,21 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
+import { ErrorCard } from '../components/ErrorCard'
 import { MetricCard } from '../components/MetricCard'
 import { SectionCard } from '../components/SectionCard'
 import { StatusBadge } from '../components/StatusBadge'
 import { useBatches } from '../hooks/useBatches'
 import { useWallet } from '../hooks/useWallet'
 import { useAppStore } from '../stores/useAppStore'
+import { useToastStore } from '../stores/useToastStore'
 import { sampleValidationRules } from '../stores/mockData'
 
 export function Dashboard() {
   const { batches, activeCount, completedCount } = useBatches()
   const wallet = useWallet()
   const refreshBatches = useAppStore((state) => state.refreshBatches)
+  const pushToast = useToastStore((state) => state.pushToast)
   const [qrCode, setQrCode] = useState<string>('')
 
   useEffect(() => {
@@ -105,6 +108,15 @@ export function Dashboard() {
             {wallet.error ? (
               <Banner tone="rose" message={wallet.error} />
             ) : null}
+            {!wallet.connected ? (
+              <ErrorCard
+                title="No wallet connected"
+                description="Connect TronLink to validate balances, generate deposit QR codes, and start any payout batch."
+                actionLabel={wallet.isConnecting ? 'Connecting…' : 'Connect TronLink'}
+                onAction={() => void wallet.connect()}
+                icon="🔐"
+              />
+            ) : null}
             {wallet.energyEstimate.lowTrxWarning ? (
               <Banner
                 tone="amber"
@@ -166,7 +178,13 @@ export function Dashboard() {
                     type="button"
                     onClick={() =>
                       wallet.address
-                        ? void navigator.clipboard.writeText(wallet.address)
+                        ? void navigator.clipboard.writeText(wallet.address).then(() =>
+                            pushToast({
+                              tone: 'success',
+                              title: 'Address copied',
+                              description: 'Deposit wallet address copied to clipboard.',
+                            }),
+                          )
                         : undefined
                     }
                     disabled={!wallet.address}
@@ -235,7 +253,13 @@ export function Dashboard() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 bg-slate-950/60">
-              {batches.map((batch) => (
+              {batches.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-slate-400">
+                    No batches yet. Import a CSV or XLSX payout file to create your first batch.
+                  </td>
+                </tr>
+              ) : batches.map((batch) => (
                 <tr key={batch.id}>
                   <td className="px-4 py-3 text-white">
                     <div className="font-medium">{batch.name}</div>

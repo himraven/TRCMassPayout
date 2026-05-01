@@ -1,5 +1,6 @@
 import { SectionCard } from '../components/SectionCard'
 import { useAppStore } from '../stores/useAppStore'
+import { sanitizeNumericInput, sanitizeUserText } from '../utils/sanitize'
 
 export function Settings() {
   const settings = useAppStore((state) => state.settings)
@@ -27,7 +28,13 @@ export function Settings() {
               max={10}
               value={settings.concurrency}
               onChange={(event) =>
-                updateSettings({ concurrency: Number(event.target.value) })
+                updateSettings({
+                  concurrency: sanitizeNumericInput(Number(event.target.value), {
+                    min: 1,
+                    max: 10,
+                    fallback: 5,
+                  }),
+                })
               }
               className="mt-4 w-full accent-emerald-400"
             />
@@ -47,7 +54,11 @@ export function Settings() {
               value={settings.feeLimitTrx}
               onChange={(event) =>
                 updateSettings({
-                  feeLimitTrx: Math.max(1, Number(event.target.value) || 1),
+                  feeLimitTrx: sanitizeNumericInput(Number(event.target.value), {
+                    min: 1,
+                    max: 10000,
+                    fallback: 150,
+                  }),
                 })
               }
               className="mt-3 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none"
@@ -68,9 +79,13 @@ export function Settings() {
               value={settings.confirmationTimeoutMinutes}
               onChange={(event) =>
                 updateSettings({
-                  confirmationTimeoutMinutes: Math.max(
-                    1,
-                    Number(event.target.value) || 1,
+                  confirmationTimeoutMinutes: sanitizeNumericInput(
+                    Number(event.target.value),
+                    {
+                      min: 1,
+                      max: 1440,
+                      fallback: 10,
+                    },
                   ),
                 })
               }
@@ -91,7 +106,7 @@ export function Settings() {
             value={settings.senderIdentity}
             onChange={(event) =>
               updateSettings({
-                senderIdentity: event.target.value,
+                senderIdentity: sanitizeUserText(event.target.value, 80),
               })
             }
             className="mt-3 w-full rounded-2xl border border-slate-700 bg-slate-950 px-4 py-3 text-white outline-none"
